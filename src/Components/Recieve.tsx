@@ -1,6 +1,9 @@
 import { useRef, useState, useEffect } from 'react'
+
+type extendedPeerConnection = RTCPeerConnection & any;
+
 function Recieve() {
-    let rc = useRef<RTCPeerConnection>(new RTCPeerConnection()).current
+    let rc = useRef<extendedPeerConnection>(new RTCPeerConnection()).current
     const inputRef = useRef<HTMLTextAreaElement | null>(null)
     const [answer, setAnswer] = useState<string>('')
     const [message, setMessage] = useState<string>('')
@@ -11,7 +14,7 @@ function Recieve() {
         rc.setRemoteDescription(offer).then(() => {
             console.log('offer set!')
 
-            rc.createAnswer().then((e) => {
+            rc.createAnswer().then((e:RTCIceCandidate) => {
                 rc.setLocalDescription(e)
                 setAnswer(JSON.stringify(e));
             })
@@ -26,12 +29,12 @@ function Recieve() {
     useEffect(() => {
         //@ts-ignore
         rc.onopen = () => console.log('Connection Opened!!')
-        rc.ondatachannel = (e) => {
+        rc.ondatachannel = (e:RTCDataChannelEvent) => {
             rc.dc = e.channel;
             //@ts-ignore
-            rc.dc.onmessage = (e) =>
-                setMessageList(prev=>[...prev, e.data])
+            rc.dc.onmessage = (e: MessageEvent) =>{    setMessageList(prev=>[...prev, e.data])
                 alert(`message arrived : ${e.data}`)
+            }
         }
         //@ts-ignore
         rc.onclose = () => console.log('Connection Closed!!')

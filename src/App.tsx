@@ -1,6 +1,3 @@
-import './App.css'
-import Transfer from './Components/Transfer.tsx'
-
 function App() {
 
   return (
