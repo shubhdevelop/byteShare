@@ -40,17 +40,16 @@ function Recieve() {
         }
         function onRecieveOffer(offer: RTCIceCandidate) {
             rc.setRemoteDescription(offer)
-            rc.createAnswer().then((answer) => {
+            rc.createAnswer().then((answer: RTCIceCandidate) => {
                 rc.setLocalDescription(answer)
                 console.log('answer created')
             })
         }
 
-        function onIceCandidate(e) {
+        function onIceCandidate(e: RTCPeerConnectionIceEvent) {
             console.log('answer new ice candidate found', e.candidate)
             socket.emit('forward-answer', rc.localDescription)
         }
-
         socket.on('connect', onConnect)
         socket.on('disconnect', onDisconnect)
         socket.on('recieve-offer', onRecieveOffer)
