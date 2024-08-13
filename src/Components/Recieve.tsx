@@ -46,10 +46,10 @@ function Recieve() {
         }
         //@ts-ignore
         rc.onclose = () => console.log('Connection Closed!!')
-        rc.onicecandidate = () =>
+        rc.onicecandidate = (e) =>
             console.log(
                 'new ice candidate!!, reprinting Sdp',
-                JSON.stringify(rc.localDescription)
+                JSON.stringify(e.candidate)
             )
     }, [rc])
 
