@@ -6,16 +6,9 @@ type extendedPeerConnection = RTCPeerConnection & any
 const configuration = {
     iceServers: [
         {
-            urls: [
-                'stun:stun.cloudflare.com:3478',
-                'turn:turn.cloudflare.com:3478?transport=udp',
-                'turn:turn.cloudflare.com:3478?transport=tcp',
-                'turns:turn.cloudflare.com:5349?transport=tcp',
-            ],
-            username:
-                '0ab1bfe2ae0dfa9f74fef377d335846c4ac8e9c97f061e0d64252b5094df531e',
-            credential:
-                '231c510349ea1a7cd8315e139d6ba345208c7f1488e8f49b9c97a84d3923c176',
+            urls: ['turn:relay1.expressturn.com:3478'],
+            username: 'efJEPK1WOUMR7A5PQ2',
+            credential: '6Gqf2AT7dzcEivcj',
         },
     ],
 }
