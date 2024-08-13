@@ -1,11 +1,19 @@
 import { useEffect, useRef, useMemo, useState } from 'react'
 
+const configuration = {
+    iceServers: [
+        {
+            urls: 'stun:stun.l.google.com:19302'
+        }
+    ]
+};
+
 function Send() {
     const [offer, setOffer] = useState('')
     const [message, setMessage] = useState('')
     const [messageList, setMessageList] = useState<string[] | []>([])
     const inputRef = useRef<HTMLTextAreaElement | null>(null)
-    const lc = useRef(new RTCPeerConnection()).current
+    const lc = useRef(new RTCPeerConnection(configuration)).current
     const dc = useMemo(() => lc.createDataChannel('channel'), [lc])
 
     function handleAnswer() {

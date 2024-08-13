@@ -2,8 +2,16 @@ import { useRef, useState, useEffect } from 'react'
 
 type extendedPeerConnection = RTCPeerConnection & any;
 
+const configuration = {
+    iceServers: [
+        {
+            urls: 'stun:stun.l.google.com:19302'
+        }
+    ]
+};
+
 function Recieve() {
-    let rc = useRef<extendedPeerConnection>(new RTCPeerConnection()).current
+    let rc = useRef<extendedPeerConnection>(new RTCPeerConnection(configuration)).current
     const inputRef = useRef<HTMLTextAreaElement | null>(null)
     const [answer, setAnswer] = useState<string>('')
     const [message, setMessage] = useState<string>('')
