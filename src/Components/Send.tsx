@@ -4,9 +4,16 @@ import { io } from 'socket.io-client'
 const configuration = {
     iceServers: [
         {
-            urls: ['turn:relay1.expressturn.com:3478'],
-            username: 'efJEPK1WOUMR7A5PQ2',
-            credential: '6Gqf2AT7dzcEivcj',
+            urls: [
+                'stun:stun.cloudflare.com:3478',
+                'turn:turn.cloudflare.com:3478?transport=udp',
+                'turn:turn.cloudflare.com:3478?transport=tcp',
+                'turns:turn.cloudflare.com:5349?transport=tcp',
+            ],
+            username:
+                '8bc8b19c3fd5f349ffdba084b614fb9b764c885f36212a99d14b35049b374002',
+            credential:
+                '67d2a742447987718f4798d6409e8bb865e50fe3a9c225cd6d64c9b5db86675e',
         },
     ],
 }
