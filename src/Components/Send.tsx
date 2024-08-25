@@ -1,8 +1,8 @@
-import { useEffect, useRef, useMemo, useState } from 'react'
+import { useEffect, useRef, useMemo, useState, MutableRefObject } from 'react'
 import { nanoid } from 'nanoid'
 import { io } from 'socket.io-client'
 
-const useCleanup = (val: any) => {
+const useCleanup = (val: HTMLVideoElement | null) => {
     const valRef = useRef(val)
     useEffect(() => {
         valRef.current = val
@@ -18,7 +18,7 @@ const useCleanup = (val: any) => {
 const initialiseCamera = async () =>
     await navigator.mediaDevices.getUserMedia({ audio: false, video: true })
 
-export const useCamera = (videoRef: any) => {
+export const useCamera = (videoRef: MutableRefObject<HTMLVideoElement>) => {
     const [isCameraInitialised, setIsCameraInitialised] = useState(false)
     const [video, setVideo] = useState<HTMLVideoElement | null>(null)
     const [, setError] = useState('')
@@ -91,16 +91,13 @@ const configuration = {
 
 function Send() {
     const videoRef = useRef<HTMLVideoElement | null>(null)
-    const [stream] = useCamera(videoRef)
+    const [stream] = useCamera(videoRef as MutableRefObject<HTMLVideoElement>)
 
     const socket = io('https://signaling-serve.onrender.com', {
         transports: ['websocket'],
     })
     const lc = useRef(new RTCPeerConnection(configuration)).current
-    const tracks = stream?.getTracks()
-    if (tracks && tracks?.length > 0) {
-        lc.addTrack(tracks[0])
-    }
+
     const dc = useMemo(() => lc.createDataChannel('channel'), [lc])
     const [message, setMessage] = useState<string>('')
     const [messageList, setMessageList] = useState<string[]>([])
@@ -110,6 +107,13 @@ function Send() {
         setMessageList((prev) => [...prev, message])
         setMessage('')
     }
+
+    useEffect(() => {
+        const tracks = stream?.getTracks()
+        if (tracks && tracks?.length > 0) {
+            lc.addTrack(tracks[0])
+        }
+    }, [])
 
     useEffect(() => {
         function onConnect() {
@@ -134,9 +138,9 @@ function Send() {
             console.log('ice candidiate send!!')
         }
 
-        socket.on('connect', onConnect)
-        socket.on('recieve-answer', onRecieveAnswer)
-        socket.on('disconnect', onDisconnect)
+        socket.on('socket:connect', onConnect)
+        socket.on('socket:recieve-answer', onRecieveAnswer)
+        socket.on('socket:disconnect', onDisconnect)
         lc.onicecandidate = onIceCandidate
         lc.createOffer().then((e) => {
             lc.setLocalDescription(e)
