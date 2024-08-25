@@ -97,6 +97,10 @@ function Send() {
         transports: ['websocket'],
     })
     const lc = useRef(new RTCPeerConnection(configuration)).current
+    const tracks = stream?.getTracks()
+    if (tracks && tracks?.length > 0) {
+        lc.addTrack(tracks[0])
+    }
     const dc = useMemo(() => lc.createDataChannel('channel'), [lc])
     const [message, setMessage] = useState<string>('')
     const [messageList, setMessageList] = useState<string[]>([])
@@ -108,11 +112,6 @@ function Send() {
     }
 
     useEffect(() => {
-        const tracks = stream?.getTracks()
-        if (tracks && tracks?.length > 0) {
-            lc.addTrack(tracks[0])
-        }
-
         function onConnect() {
             console.log('connected')
         }
