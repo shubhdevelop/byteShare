@@ -1,15 +1,26 @@
 import { useEffect, useRef, useMemo, useState } from 'react'
+const useCleanup = (val: any) => {
+    const valRef = useRef(val)
+    useEffect(() => {
+        valRef.current = val
+    }, [val])
 
-const initialiseCamera = async () =>
-    await navigator.mediaDevices.getUserMedia({ audio: false, video: true })
+    useEffect(() => {
+        return () => {
+            // cleanup based on valRef.current
+        }
+    }, [])
+}
+
+const initialiseCamera = () =>
+    navigator.mediaDevices.getUserMedia({ audio: false, video: true })
 
 export const useCamera = (videoRef: any) => {
     const [isCameraInitialised, setIsCameraInitialised] = useState(false)
     const [video, setVideo] = useState(null)
     const [error, setError] = useState('')
     const [playing, setPlaying] = useState(true)
-
-    useCamera(videoRef)
+    const [stream, setStream] = useState<MediaStream | null>(null)
 
     useEffect(() => {
         if (video || !videoRef.current) {
@@ -22,6 +33,8 @@ export const useCamera = (videoRef: any) => {
         }
     }, [videoRef, video])
 
+    useCleanup(video)
+
     useEffect(() => {
         if (!video || isCameraInitialised || !playing) {
             return
@@ -31,6 +44,7 @@ export const useCamera = (videoRef: any) => {
             .then((stream) => {
                 video.srcObject = stream
                 setIsCameraInitialised(true)
+                setStream(stream)
             })
             .catch((e) => {
                 setError(e.message)
@@ -48,7 +62,7 @@ export const useCamera = (videoRef: any) => {
         }
     }, [playing, videoRef])
 
-    return [video, isCameraInitialised, playing, setPlaying, error]
+    return [stream]
 }
 
 const configuration = {
@@ -70,12 +84,20 @@ const configuration = {
 
 function Send() {
     const videoRef = useRef<HTMLVideoElement | null>(null)
+    const [stream] = useCamera(videoRef)
     const [offer, setOffer] = useState('')
     const [message, setMessage] = useState('')
     const [messageList, setMessageList] = useState<string[] | []>([])
     const inputRef = useRef<HTMLTextAreaElement | null>(null)
     const lc = useRef(new RTCPeerConnection(configuration)).current
     const dc = useMemo(() => lc.createDataChannel('channel'), [lc])
+
+    useEffect(() => {
+        const tracks = stream?.getTracks()
+        if (tracks && tracks.length > 0) {
+            lc.addTrack(tracks[0])
+        }
+    }, [lc, stream])
 
     function handleAnswer() {
         if (inputRef.current) {
