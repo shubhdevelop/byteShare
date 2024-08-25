@@ -1,105 +1,93 @@
 import { useRef, useState, useEffect } from 'react'
-import { nanoid } from 'nanoid'
-import { io } from 'socket.io-client'
-type extendedPeerConnection = RTCPeerConnection & any
+
+type extendedPeerConnection = RTCPeerConnection & any;
 
 const configuration = {
     iceServers: [
         {
-            urls: [
-                'stun:stun.cloudflare.com:3478',
-                'turn:turn.cloudflare.com:3478?transport=udp',
-                'turn:turn.cloudflare.com:3478?transport=tcp',
-                'turns:turn.cloudflare.com:5349?transport=tcp',
-            ],
-            username:
-                '0ab1bfe2ae0dfa9f74fef377d335846c4ac8e9c97f061e0d64252b5094df531e',
-            credential:
-                '231c510349ea1a7cd8315e139d6ba345208c7f1488e8f49b9c97a84d3923c176',
-        },
-    ],
-}
+            urls: 'stun:stun.l.google.com:19302'
+        }
+    ]
+};
 
-const socket = io('https://signaling-serve.onrender.com/', {
-    transports: ['websocket'],
-})
 function Recieve() {
-    //create an receiver PeerConnnection
-    let rc = useRef<extendedPeerConnection>(
-        new RTCPeerConnection(configuration)
-    ).current
+    let rc = useRef<extendedPeerConnection>(new RTCPeerConnection(configuration)).current
+    const inputRef = useRef<HTMLTextAreaElement | null>(null)
+    const [answer, setAnswer] = useState<string>('')
     const [message, setMessage] = useState<string>('')
-    const [messageList, setMessageList] = useState<string[]>([])
+    const [messageList , setMessageList] = useState<string[]>([]);
+    function handleOffer() {
+        if(inputRef && inputRef.current){
+        const offer = JSON.parse(inputRef.current.value)
+        rc.setRemoteDescription(offer).then(() => {
+            console.log('offer set!')
 
-    useEffect(() => {
-        function onConnect() {
-            console.log('connect!!')
-        }
-        function onDisconnect() {
-            console.log('disconnected!!')
-        }
-        function onRecieveOffer(offer: RTCIceCandidate) {
-            rc.setRemoteDescription(offer)
-            rc.createAnswer().then((answer: RTCIceCandidate) => {
-                rc.setLocalDescription(answer)
-                console.log('answer created')
+            rc.createAnswer().then((e:RTCIceCandidate) => {
+                rc.setLocalDescription(e)
+                setAnswer(JSON.stringify(e));
             })
+        })
         }
-
-        function onIceCandidate(e: RTCPeerConnectionIceEvent) {
-            console.log('answer new ice candidate found', e.candidate)
-            socket.emit('forward-answer', rc.localDescription)
-        }
-        socket.on('connect', onConnect)
-        socket.on('disconnect', onDisconnect)
-        socket.on('recieve-offer', onRecieveOffer)
-
-        rc.onicecandidate = onIceCandidate
-
-        return () => {
-            socket.off('connect', onConnect)
-            socket.off('disconnect', onDisconnect)
-            socket.off('recieve-offer', onRecieveOffer)
-        }
-    }, [])
-
+    }
+    function handleSendMessage(){
+           rc.dc.send(message);
+            setMessageList(prev=>[...prev, message])
+            setMessage("");
+    }   
     useEffect(() => {
         //@ts-ignore
         rc.onopen = () => console.log('Connection Opened!!')
-        rc.ondatachannel = (e: RTCDataChannelEvent) => {
-            rc.dc = e.channel
+        rc.ondatachannel = (e:RTCDataChannelEvent) => {
+            rc.dc = e.channel;
             //@ts-ignore
-            rc.dc.onmessage = (e: MessageEvent) => {
-                setMessageList((prev) => [...prev, e.data])
+            rc.dc.onmessage = (e: MessageEvent) =>{    setMessageList(prev=>[...prev, e.data])
+                alert(`message arrived : ${e.data}`)
             }
         }
         //@ts-ignore
         rc.onclose = () => console.log('Connection Closed!!')
-        rc.oniceconnectionstatechange = () => {
-            console.log('ICE Connection State: ', rc.iceConnectionState)
-        }
+        rc.onicecandidate = (e) =>
+            console.log(
+                'new ice candidate!!, reprinting Sdp',
+                JSON.stringify(e.candidate)
+            )
     }, [rc])
 
     return (
         <div>
-            <div className="p-4 w-full">
-                <h1>Message</h1>
+            <textarea
+                className="px-3 py-2 m-2 border-[1px] shadow-md rounded-sm w-96"
+                placeholder="give your offer here!!"
+                ref={inputRef}
+            />
+            <button
+                className="bg-black text-white border-[1px] rounded-md px-4 py-2 cursor-pointer"
+                onClick={handleOffer}
+            >
+                Set Offer
+            </button>
+            <code className=" block text-black whitepace-pre bg-white w-[60%] overflow-x-scroll p-2 m-2 border-[1px] shadow-md rounded-md">
+                {answer}
+            </code>
+
+            <code className=" block text-black whitepace-pre bg-white w-[60%] overflow-x-scroll p-2 m-2 border-[1px] shadow-md rounded-md"></code>
+            <h1> Message </h1>
+            <input
+                value={message}
+                className="border-[1px]"
+                type="text"
+                onChange={(e) => setMessage(e.target.value)}
+            />
+            <button onClick={handleSendMessage} className="border-[1px] py-2 px-3 bg-black shadow-md rounded-md text-white m-3">
+                Send
+            </button>
+
+            <div className="w-[50%] p-4 bg-white text-black shadow-md rounded-sm">
                 {messageList.map((message) => (
-                    <p
-                        key={nanoid()}
-                        className="py-2 text-blue-500 px-3 w-full text-left border-[1px]"
-                    >
+                    <p className="border-[1px] p-4 text-blue-400">
                         {message}
-                    </p>
+                        </p>
                 ))}
-                <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => {
-                        setMessage(e.target.value)
-                    }}
-                    className="py-2 px-3 border-[1px] shadow-md mr-2"
-                />
             </div>
         </div>
     )
