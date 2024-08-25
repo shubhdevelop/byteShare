@@ -1,52 +1,55 @@
 import { useRef, useState, useEffect } from 'react'
 
-type extendedPeerConnection = RTCPeerConnection & any;
+type extendedPeerConnection = RTCPeerConnection & any
 
 const configuration = {
     iceServers: [
         {
-            urls: 'stun:stun.l.google.com:19302'
-        }
-    ]
-};
+            urls: 'stun:stun.l.google.com:19302',
+        },
+    ],
+}
 
 function Recieve() {
-    let rc = useRef<extendedPeerConnection>(new RTCPeerConnection(configuration)).current
+    let rc = useRef<extendedPeerConnection>(
+        new RTCPeerConnection(configuration)
+    ).current
     const inputRef = useRef<HTMLTextAreaElement | null>(null)
     const [answer, setAnswer] = useState<string>('')
     const [message, setMessage] = useState<string>('')
-    const [messageList , setMessageList] = useState<string[]>([]);
+    const [messageList, setMessageList] = useState<string[]>([])
     function handleOffer() {
-        if(inputRef && inputRef.current){
-        const offer = JSON.parse(inputRef.current.value)
-        rc.setRemoteDescription(offer).then(() => {
-            console.log('offer set!')
+        if (inputRef && inputRef.current) {
+            const offer = JSON.parse(inputRef.current.value)
+            rc.setRemoteDescription(offer).then(() => {
+                console.log('offer set!')
 
-            rc.createAnswer().then((e:RTCIceCandidate) => {
-                rc.setLocalDescription(e)
-                setAnswer(JSON.stringify(e));
+                rc.createAnswer().then((e: RTCIceCandidate) => {
+                    rc.setLocalDescription(e)
+                    setAnswer(JSON.stringify(e))
+                })
             })
-        })
         }
     }
-    function handleSendMessage(){
-           rc.dc.send(message);
-            setMessageList(prev=>[...prev, message])
-            setMessage("");
-    }   
+    function handleSendMessage() {
+        rc.dc.send(message)
+        setMessageList((prev) => [...prev, message])
+        setMessage('')
+    }
     useEffect(() => {
         //@ts-ignore
         rc.onopen = () => console.log('Connection Opened!!')
-        rc.ondatachannel = (e:RTCDataChannelEvent) => {
-            rc.dc = e.channel;
+        rc.ondatachannel = (e: RTCDataChannelEvent) => {
+            rc.dc = e.channel
             //@ts-ignore
-            rc.dc.onmessage = (e: MessageEvent) =>{    setMessageList(prev=>[...prev, e.data])
+            rc.dc.onmessage = (e: MessageEvent) => {
+                setMessageList((prev) => [...prev, e.data])
                 alert(`message arrived : ${e.data}`)
             }
         }
         //@ts-ignore
         rc.onclose = () => console.log('Connection Closed!!')
-        rc.onicecandidate = (e) =>
+        rc.onicecandidate = (e: any) =>
             console.log(
                 'new ice candidate!!, reprinting Sdp',
                 JSON.stringify(e.candidate)
@@ -78,15 +81,16 @@ function Recieve() {
                 type="text"
                 onChange={(e) => setMessage(e.target.value)}
             />
-            <button onClick={handleSendMessage} className="border-[1px] py-2 px-3 bg-black shadow-md rounded-md text-white m-3">
+            <button
+                onClick={handleSendMessage}
+                className="border-[1px] py-2 px-3 bg-black shadow-md rounded-md text-white m-3"
+            >
                 Send
             </button>
 
             <div className="w-[50%] p-4 bg-white text-black shadow-md rounded-sm">
                 {messageList.map((message) => (
-                    <p className="border-[1px] p-4 text-blue-400">
-                        {message}
-                        </p>
+                    <p className="border-[1px] p-4 text-blue-400">{message}</p>
                 ))}
             </div>
         </div>

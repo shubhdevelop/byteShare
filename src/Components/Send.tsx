@@ -18,9 +18,9 @@ const initialiseCamera = () =>
 export const useCamera = (videoRef: any) => {
     const [isCameraInitialised, setIsCameraInitialised] = useState(false)
     const [video, setVideo] = useState(null)
-    const [error, setError] = useState('')
+    const [, setError] = useState('')
     const [playing, setPlaying] = useState(true)
-    const [stream, setStream] = useState<MediaStream | null>(null)
+    const [stream, setStream] = useState<MediaStream>()
 
     useEffect(() => {
         if (video || !videoRef.current) {
@@ -42,6 +42,7 @@ export const useCamera = (videoRef: any) => {
 
         initialiseCamera()
             .then((stream) => {
+                //@ts-ignore
                 video.srcObject = stream
                 setIsCameraInitialised(true)
                 setStream(stream)
