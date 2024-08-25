@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo, useState } from 'react'
 import { nanoid } from 'nanoid'
 import { io } from 'socket.io-client'
 
-const useCleanup = (val) => {
+const useCleanup = (val: any) => {
     const valRef = useRef(val)
     useEffect(() => {
         valRef.current = val
@@ -18,10 +18,10 @@ const useCleanup = (val) => {
 const initialiseCamera = async () =>
     await navigator.mediaDevices.getUserMedia({ audio: false, video: true })
 
-export const useCamera = (videoRef) => {
+export const useCamera = (videoRef: any) => {
     const [isCameraInitialised, setIsCameraInitialised] = useState(false)
-    const [video, setVideo] = useState(null)
-    const [error, setError] = useState('')
+    const [video, setVideo] = useState<HTMLVideoElement | null>(null)
+    const [, setError] = useState('')
     const [playing, setPlaying] = useState(true)
     const [stream, setStream] = useState<MediaStream | null>(null)
 
@@ -46,8 +46,9 @@ export const useCamera = (videoRef) => {
         initialiseCamera()
             .then((stream) => {
                 console.log(stream)
-
-                video.srcObject = stream
+                if (video) {
+                    video.srcObject = stream
+                }
                 setIsCameraInitialised(true)
                 setStream(stream)
             })
@@ -108,7 +109,7 @@ function Send() {
 
     useEffect(() => {
         const tracks = stream?.getTracks()
-        if (tracks &&tracks?.length > 0) {
+        if (tracks && tracks?.length > 0) {
             lc.addTrack(tracks[0])
         }
 
