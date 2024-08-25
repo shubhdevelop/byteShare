@@ -90,12 +90,11 @@ const configuration = {
 }
 
 function Send() {
-    const videoRef = useRef<HTMLVideoElement | null>(null)
-    const [stream] = useCamera(videoRef as MutableRefObject<HTMLVideoElement>)
-
     const socket = io('https://signaling-serve.onrender.com', {
         transports: ['websocket'],
     })
+    const videoRef = useRef<HTMLVideoElement | null>(null)
+    const [stream] = useCamera(videoRef as MutableRefObject<HTMLVideoElement>)
     const lc = useRef(new RTCPeerConnection(configuration)).current
 
     const dc = useMemo(() => lc.createDataChannel('channel'), [lc])
@@ -113,7 +112,7 @@ function Send() {
         if (tracks && tracks?.length > 0) {
             lc.addTrack(tracks[0])
         }
-    }, [])
+    }, [stream])
 
     useEffect(() => {
         function onConnect() {
@@ -153,13 +152,13 @@ function Send() {
         }
     }, [lc, socket])
 
-    useEffect(() => {
-        dc.onopen = () => console.log('Connection Opened!!')
-        dc.onmessage = (e) => {
-            console.log('messsage received!!!' + e.data)
-        }
-        dc.onclose = () => console.log('close')
-    }, [dc])
+    // useEffect(() => {
+    //     dc.onopen = () => console.log('Connection Opened!!')
+    //     dc.onmessage = (e) => {
+    //         console.log('messsage received!!!' + e.data)
+    //     }
+    //     dc.onclose = () => console.log('close')
+    // }, [dc])
 
     return (
         <div>
