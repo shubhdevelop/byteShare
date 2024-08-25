@@ -1,5 +1,8 @@
-import { useEffect, useRef, useMemo, useState } from 'react'
-const useCleanup = (val: any) => {
+import { useEffect, useRef, useMemo, useState, MutableRefObject } from 'react'
+import { nanoid } from 'nanoid'
+import { io } from 'socket.io-client'
+
+const useCleanup = (val: HTMLVideoElement | null) => {
     const valRef = useRef(val)
     useEffect(() => {
         valRef.current = val
@@ -12,15 +15,15 @@ const useCleanup = (val: any) => {
     }, [])
 }
 
-const initialiseCamera = () =>
-    navigator.mediaDevices.getUserMedia({ audio: false, video: true })
+const initialiseCamera = async () =>
+    await navigator.mediaDevices.getUserMedia({ audio: false, video: true })
 
-export const useCamera = (videoRef: any) => {
+export const useCamera = (videoRef: MutableRefObject<HTMLVideoElement>) => {
     const [isCameraInitialised, setIsCameraInitialised] = useState(false)
-    const [video, setVideo] = useState(null)
+    const [video, setVideo] = useState<HTMLVideoElement | null>(null)
     const [, setError] = useState('')
     const [playing, setPlaying] = useState(true)
-    const [stream, setStream] = useState<MediaStream>()
+    const [stream, setStream] = useState<MediaStream | null>(null)
 
     useEffect(() => {
         if (video || !videoRef.current) {
@@ -42,8 +45,10 @@ export const useCamera = (videoRef: any) => {
 
         initialiseCamera()
             .then((stream) => {
-                //@ts-ignore
-                video.srcObject = stream
+                console.log(stream)
+                if (video) {
+                    video.srcObject = stream
+                }
                 setIsCameraInitialised(true)
                 setStream(stream)
             })
@@ -64,6 +69,7 @@ export const useCamera = (videoRef: any) => {
     }, [playing, videoRef])
 
     return [stream]
+    // isCameraInitialised, playing, setPlaying, error, stream
 }
 
 const configuration = {
@@ -76,109 +82,118 @@ const configuration = {
                 'turns:turn.cloudflare.com:5349?transport=tcp',
             ],
             username:
-                '0ab1bfe2ae0dfa9f74fef377d335846c4ac8e9c97f061e0d64252b5094df531e',
+                '8bc8b19c3fd5f349ffdba084b614fb9b764c885f36212a99d14b35049b374002',
             credential:
-                '231c510349ea1a7cd8315e139d6ba345208c7f1488e8f49b9c97a84d3923c176',
+                '67d2a742447987718f4798d6409e8bb865e50fe3a9c225cd6d64c9b5db86675e',
         },
     ],
 }
 
 function Send() {
+    const socket = io('https://signaling-serve.onrender.com', {
+        transports: ['websocket'],
+    })
     const videoRef = useRef<HTMLVideoElement | null>(null)
-    const [stream] = useCamera(videoRef)
-    const [offer, setOffer] = useState('')
-    const [message, setMessage] = useState('')
-    const [messageList, setMessageList] = useState<string[] | []>([])
-    const inputRef = useRef<HTMLTextAreaElement | null>(null)
+    const [stream] = useCamera(videoRef as MutableRefObject<HTMLVideoElement>)
     const lc = useRef(new RTCPeerConnection(configuration)).current
+
     const dc = useMemo(() => lc.createDataChannel('channel'), [lc])
+    const [message, setMessage] = useState<string>('')
+    const [messageList, setMessageList] = useState<string[]>([])
 
-    useEffect(() => {
-        const tracks = stream?.getTracks()
-        if (tracks && tracks.length > 0) {
-            lc.addTrack(tracks[0])
-        }
-    }, [lc, stream])
-
-    function handleAnswer() {
-        if (inputRef.current) {
-            const answer = JSON.parse(inputRef.current.value)
-            lc.setRemoteDescription(answer)
-        }
+    function handlesSendMessage() {
+        dc.send(message)
+        setMessageList((prev) => [...prev, message])
+        setMessage('')
     }
 
     useEffect(() => {
-        lc.onicecandidate = () => {
+        const tracks = stream?.getTracks()
+        if (tracks && tracks?.length > 0) {
+            lc.addTrack(tracks[0])
+        }
+    }, [stream])
+
+    useEffect(() => {
+        function onConnect() {
+            console.log('connected')
+        }
+        function onRecieveAnswer(answer: any) {
+            console.log(answer, ':recieved!!')
+            lc.setRemoteDescription(answer)
+            console.log('remote Description set!!')
+        }
+
+        function onDisconnect() {
+            console.log('disconnected')
+        }
+
+        function onIceCandidate() {
             console.log(
                 'found new Ice Candidate:',
                 JSON.stringify(lc.localDescription)
             )
-            setOffer(JSON.stringify(lc.localDescription))
+            socket.emit('offer-forward', lc.localDescription)
+            console.log('ice candidiate send!!')
         }
 
+        socket.on('socket:connect', onConnect)
+        socket.on('socket:recieve-answer', onRecieveAnswer)
+        socket.on('socket:disconnect', onDisconnect)
+        lc.onicecandidate = onIceCandidate
         lc.createOffer().then((e) => {
-            console.log('creating an offer')
             lc.setLocalDescription(e)
         })
-    }, [lc])
 
-    useEffect(() => {
-        dc.onopen = () => console.log('Connection Opened!!')
-        dc.onmessage = (e) => {
-            console.log('messsage received!!!' + e.data)
-            setMessageList((prev) => [...prev, `sender: ${e.data}`])
+        return () => {
+            socket.off('connect', onConnect)
+            socket.off('recieve-answer', onRecieveAnswer)
+            socket.off('disconnect', onDisconnect)
         }
-        dc.onclose = () => console.log('close')
-    }, [dc])
+    }, [lc, socket])
+
+    // useEffect(() => {
+    //     dc.onopen = () => console.log('Connection Opened!!')
+    //     dc.onmessage = (e) => {
+    //         console.log('messsage received!!!' + e.data)
+    //     }
+    //     dc.onclose = () => console.log('close')
+    // }, [dc])
 
     return (
         <div>
-            <code className=" block text-black whitepace-pre bg-white w-[60%] overflow-x-scroll p-2 m-2 border-[1px] shadow-md rounded-md">
-                {offer}
-            </code>
-            <textarea
-                className="px-3 py-2 m-2 border-[1px] shadow-md rounded-sm w-96"
-                placeholder="Set your ice here!!"
-                ref={inputRef}
-            />
-            <button
-                className="bg-black text-white border-[1px] rounded-md px-4 py-2 cursor-pointer"
-                onClick={handleAnswer}
-            >
-                {' '}
-                Set here
-            </button>
-
-            <code className=" block text-black whitepace-pre bg-white w-[60%] overflow-x-scroll p-2 m-2 border-[1px] shadow-md rounded-md"></code>
-            <h1> Message </h1>
-            <input
-                value={message}
-                className="border-[1px]"
-                type="text"
-                onChange={(e) => setMessage(e.target.value)}
-            />
-            <button
-                onClick={() => {
-                    dc.send(message)
-                    setMessageList((prev) => [...prev, `shubham: ${message}`])
-                    setMessage('')
-                }}
-                className="border-[1px] py-2 px-3 bg-black shadow-md rounded-md text-white m-3"
-            >
-                {' '}
-                Send{' '}
-            </button>
-
-            <div className="w-[50%] p-4 bg-white text-black shadow-md rounded-sm">
+            <div className="p-4 w-full">
+                <h1>Message</h1>
                 {messageList.map((message) => (
-                    <p className="border-[1px] p-4 text-blue-400">
-                        {' '}
-                        {message}{' '}
+                    <p
+                        key={nanoid()}
+                        className="py-2 text-blue-500 px-3 w-full text-left border-[1px]"
+                    >
+                        {message}
                     </p>
                 ))}
+                <input
+                    type="text"
+                    value={message}
+                    onChange={(e) => {
+                        setMessage(e.target.value)
+                    }}
+                    className="py-2 px-3 border-[1px] shadow-md mr-2"
+                />
+                <button
+                    onClick={handlesSendMessage}
+                    className="px-3 py-2 bg-black text-white rounded-md border-[1px] shadow-md"
+                >
+                    Send
+                </button>
+                <video
+                    controls={true}
+                    className="boder-[1px]"
+                    width={1000}
+                    height={720}
+                    ref={videoRef}
+                ></video>
             </div>
-
-            <video ref={videoRef} width={100} height={72} controls></video>
         </div>
     )
 }
