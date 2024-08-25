@@ -1,6 +1,76 @@
 import { useEffect, useRef, useMemo, useState } from 'react'
 import { nanoid } from 'nanoid'
 import { io } from 'socket.io-client'
+
+const useCleanup = (val) => {
+    const valRef = useRef(val)
+    useEffect(() => {
+        valRef.current = val
+    }, [val])
+
+    useEffect(() => {
+        return () => {
+            // cleanup based on valRef.current
+        }
+    }, [])
+}
+
+const initialiseCamera = async () =>
+    await navigator.mediaDevices.getUserMedia({ audio: false, video: true })
+
+export const useCamera = (videoRef) => {
+    const [isCameraInitialised, setIsCameraInitialised] = useState(false)
+    const [video, setVideo] = useState(null)
+    const [error, setError] = useState('')
+    const [playing, setPlaying] = useState(true)
+    const [stream, setStream] = useState<MediaStream | null>(null)
+
+    useEffect(() => {
+        if (video || !videoRef.current) {
+            return
+        }
+
+        const videoElement = videoRef.current
+        if (videoElement instanceof HTMLVideoElement) {
+            setVideo(videoRef.current)
+        }
+    }, [videoRef, video])
+
+    useCleanup(video)
+
+    useEffect(() => {
+        if (!video || isCameraInitialised || !playing) {
+            return
+        }
+
+        initialiseCamera()
+            .then((stream) => {
+                console.log(stream)
+
+                video.srcObject = stream
+                setIsCameraInitialised(true)
+                setStream(stream)
+            })
+            .catch((e) => {
+                setError(e.message)
+                setPlaying(false)
+            })
+    }, [video, isCameraInitialised, playing])
+
+    useEffect(() => {
+        const videoElement = videoRef.current
+
+        if (playing) {
+            videoElement.play()
+        } else {
+            videoElement.pause()
+        }
+    }, [playing, videoRef])
+
+    return [stream]
+    // isCameraInitialised, playing, setPlaying, error, stream
+}
+
 const configuration = {
     iceServers: [
         {
@@ -19,6 +89,9 @@ const configuration = {
 }
 
 function Send() {
+    const videoRef = useRef<HTMLVideoElement | null>(null)
+    const [stream] = useCamera(videoRef)
+
     const socket = io('https://signaling-serve.onrender.com', {
         transports: ['websocket'],
     })
@@ -34,6 +107,11 @@ function Send() {
     }
 
     useEffect(() => {
+        const tracks = stream?.getTracks()
+        if (tracks &&tracks?.length > 0) {
+            lc.addTrack(tracks[0])
+        }
+
         function onConnect() {
             console.log('connected')
         }
@@ -103,9 +181,15 @@ function Send() {
                     onClick={handlesSendMessage}
                     className="px-3 py-2 bg-black text-white rounded-md border-[1px] shadow-md"
                 >
-                    {' '}
-                    Send{' '}
+                    Send
                 </button>
+                <video
+                    controls={true}
+                    className="boder-[1px]"
+                    width={1000}
+                    height={720}
+                    ref={videoRef}
+                ></video>
             </div>
         </div>
     )
